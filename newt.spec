@@ -2,12 +2,13 @@
 Summary: A library for text mode user interfaces
 Name: newt
 Version: 0.52.11
-Release: 2%{?dist}
+Release: 3%{?dist}
 License: LGPLv2
 Group: System Environment/Libraries
 URL: https://fedorahosted.org/newt/
 Source: https://fedorahosted.org/releases/n/e/newt/newt-%{version}.tar.gz
 Patch0: newt-0.52.11-nosnacknls.patch
+Patch1: newt-0.52.11-customcolors.patch
 BuildRequires: popt-devel python-devel slang-devel
 BuildRequires: docbook-utils
 Provides: snack = %{version}-%{release}
@@ -59,6 +60,7 @@ providing a python API for creating text mode ionterfaces.
 %prep
 %setup -q
 %patch0 -p1 -b .nosnacknls
+%patch1 -p1 -b .customcolors
 
 %build
 # gpm support seems to smash the stack w/ we use help in anaconda??
@@ -106,6 +108,10 @@ rm -rf $RPM_BUILD_ROOT
 %{python_sitearch}/*.py*
 
 %changelog
+* Tue Jul 26 2011 Miroslav Lichvar <mlichvar@redhat.com> - 0.52.11-3
+- add support for changing colors in individual labels, scrollbars, entries,
+  textboxes and scales, add custom colorsets (#707704)
+
 * Tue Jun 08 2010 Miroslav Lichvar <mlichvar@redhat.com> - 0.52.11-2
 - remove NLS code from snack (#599608)
 

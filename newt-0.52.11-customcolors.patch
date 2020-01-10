@@ -1,0 +1,461 @@
+commit 7b6003b0469f3633470507ed2dd39369db5c0b6e
+Author: Miroslav Lichvar <mlichvar@redhat.com>
+Date:   Wed May 18 19:20:13 2011 +0200
+
+    add custom colorsets
+
+diff --git a/newt.c b/newt.c
+index ab41dd8..8307748 100644
+--- a/newt.c
++++ b/newt.c
+@@ -417,7 +417,8 @@ void newtSetColors(struct newtColors colors) {
+ }
+ 
+ void newtSetColor(int colorset, char *fg, char *bg) {
+-    if (colorset < NEWT_COLORSET_ROOT || colorset > NEWT_COLORSET_SELLISTBOX ||
++    if (colorset < NEWT_COLORSET_ROOT ||
++        (colorset > NEWT_COLORSET_SELLISTBOX && colorset < NEWT_COLORSET_CUSTOM(0)) ||
+ 	    !SLtt_Use_Ansi_Colors)
+ 	return;
+ 
+diff --git a/newt.h b/newt.h
+index f71ce1e..81a57ca 100644
+--- a/newt.h
++++ b/newt.h
+@@ -31,6 +31,8 @@ extern "C" {
+ #define NEWT_COLORSET_ACTSELLISTBOX	23
+ #define NEWT_COLORSET_SELLISTBOX	24
+ 
++#define NEWT_COLORSET_CUSTOM(x)		(1000 + (x))
++
+ #define NEWT_ARG_LAST			-100000
+ #define NEWT_ARG_APPEND			-1
+ 
+
+commit 099b22e5e57b20fa6cac92111eed8cdeacb2f4a3
+Author: Miroslav Lichvar <mlichvar@redhat.com>
+Date:   Wed May 18 19:23:39 2011 +0200
+
+    allowing changing colors in individual labels, scrollbars, entries, scales
+
+diff --git a/entry.c b/entry.c
+index 5585ce5..a5ae688 100644
+--- a/entry.c
++++ b/entry.c
+@@ -23,6 +23,8 @@ struct entry {
+     int firstChar;		/* first character position being shown */
+     newtEntryFilter filter;
+     void * filterData;
++    int cs;
++    int csDisabled;
+ };
+ 
+ static int previous_char(const char *buf, int pos);
+@@ -117,6 +119,9 @@ newtComponent newtEntry(int left, int top, const char * initialValue, int width,
+ 	en->cursorPosition = 0;
+     }
+ 
++    en->cs = NEWT_COLORSET_ENTRY;
++    en->csDisabled = NEWT_COLORSET_DISENTRY;
++
+     return co;
+ }
+ 
+@@ -184,9 +189,9 @@ static void entryDraw(newtComponent co) {
+     if (!co->isMapped) return;
+ 
+     if (en->flags & NEWT_FLAG_DISABLED)
+-	SLsmg_set_color(NEWT_COLORSET_DISENTRY);
++	SLsmg_set_color(en->csDisabled);
+     else
+-	SLsmg_set_color(NEWT_COLORSET_ENTRY);
++	SLsmg_set_color(en->cs);
+ 
+     if (en->flags & NEWT_FLAG_HIDDEN) {
+ 	newtGotorc(co->top, co->left);
+@@ -255,6 +260,14 @@ void newtEntrySetFlags(newtComponent co, int flags, enum newtFlagsSense sense) {
+     newtGotorc(row, col);
+ }
+ 
++void newtEntrySetColors(newtComponent co, int normal, int disabled) {
++    struct entry * en = co->data;
++
++    en->cs = normal;
++    en->csDisabled = disabled;
++    entryDraw(co);
++}
++
+ static void entryDestroy(newtComponent co) {
+     struct entry * en = co->data;
+ 
+diff --git a/label.c b/label.c
+index bc9e510..85fa518 100644
+--- a/label.c
++++ b/label.c
+@@ -8,6 +8,7 @@
+ struct label {
+     char * text;
+     int length;
++    int cs;
+ };
+ 
+ static void labelDraw(newtComponent co);
+@@ -41,6 +42,7 @@ newtComponent newtLabel(int left, int top, const char * text) {
+ 
+     la->length = strlen(text);
+     la->text = strdup(text);
++    la->cs = COLORSET_LABEL;
+ 
+     return co;
+ }
+@@ -63,12 +65,19 @@ void newtLabelSetText(newtComponent co, const char * text) {
+     labelDraw(co);
+ }
+ 
++void newtLabelSetColors(newtComponent co, int colorset) {
++    struct label * la = co->data;
++
++    la->cs = colorset;
++    labelDraw(co);
++}
++
+ static void labelDraw(newtComponent co) {
+     struct label * la = co->data;
+ 
+     if (!co->isMapped) return;
+ 
+-    SLsmg_set_color(COLORSET_LABEL);
++    SLsmg_set_color(la->cs);
+ 
+     newtGotorc(co->top, co->left);
+     SLsmg_write_string(la->text);
+diff --git a/newt.0.52.ver b/newt.0.52.ver
+index bad81e8..10ea1b1 100644
+--- a/newt.0.52.ver
++++ b/newt.0.52.ver
+@@ -152,3 +152,12 @@ NEWT_0.52.11 {
+ 	global:
+ 		newtRadioSetCurrent;
+ } NEWT_0.52.9;
++
++NEWT_0.52.13 {
++	global:
++		newtEntrySetColors;
++		newtLabelSetColors;
++		newtScaleSetColors;
++		newtScrollbarSetColors;
++		newtTextboxSetColors;
++} NEWT_0.52.11;
+diff --git a/newt.h b/newt.h
+index 81a57ca..103b139 100644
+--- a/newt.h
++++ b/newt.h
+@@ -161,9 +161,11 @@ void newtGetScreenSize(int * cols, int * rows);
+ 
+ newtComponent newtLabel(int left, int top, const char * text);
+ void newtLabelSetText(newtComponent co, const char * text);
++void newtLabelSetColors(newtComponent co, int colorset);
+ newtComponent newtVerticalScrollbar(int left, int top, int height,
+ 				    int normalColorset, int thumbColorset);
+ void newtScrollbarSet(newtComponent co, int where, int total);
++void newtScrollbarSetColors(newtComponent co, int normal, int thumb);
+ 
+ newtComponent newtListbox(int left, int top, int height, int flags);
+ void * newtListboxGetCurrent(newtComponent co);
+@@ -214,6 +216,7 @@ newtComponent newtTextbox(int left, int top, int width, int height, int flags);
+ void newtTextboxSetText(newtComponent co, const char * text);
+ void newtTextboxSetHeight(newtComponent co, int height);
+ int newtTextboxGetNumLines(newtComponent co);
++void newtTextboxSetColors(newtComponent co, int normal, int active);
+ char * newtReflowText(char * text, int width, int flexDown, int flexUp,
+ 		      int * actualWidth, int * actualHeight);
+ 
+@@ -251,9 +254,11 @@ void newtEntrySet(newtComponent co, const char * value, int cursorAtEnd);
+ void newtEntrySetFilter(newtComponent co, newtEntryFilter filter, void * data);
+ char * newtEntryGetValue(newtComponent co);
+ void newtEntrySetFlags(newtComponent co, int flags, enum newtFlagsSense sense);
++void newtEntrySetColors(newtComponent co, int normal, int disabled);
+ 
+ newtComponent newtScale(int left, int top, int width, long long fullValue);
+ void newtScaleSet(newtComponent co, unsigned long long amount);
++void newtScaleSetColors(newtComponent co, int empty, int full);
+ 
+ void newtComponentAddCallback(newtComponent co, newtCallback f, void * data);
+ void newtComponentTakesFocus(newtComponent co, int val);
+diff --git a/scale.c b/scale.c
+index f9a1f40..3dbfca9 100644
+--- a/scale.c
++++ b/scale.c
+@@ -9,6 +9,8 @@ struct scale {
+     long long fullValue;
+     int charsSet;
+     unsigned int percentage;
++    int csEmpty;
++    int csFull;
+ };
+ 
+ static void scaleDraw(newtComponent co);
+@@ -41,6 +43,8 @@ newtComponent newtScale(int left, int top, int width, long long fullValue) {
+     sc->fullValue = fullValue;
+     sc->charsSet = 0;
+     sc->percentage = 0;
++    sc->csEmpty = NEWT_COLORSET_EMPTYSCALE;
++    sc->csFull = NEWT_COLORSET_FULLSCALE;
+ 
+     return co;
+ }
+@@ -67,6 +71,14 @@ void newtScaleSet(newtComponent co, unsigned long long amount) {
+     }
+ }
+ 
++void newtScaleSetColors(newtComponent co, int empty, int full) {
++    struct scale * sc = co->data;
++
++    sc->csEmpty = empty;
++    sc->csFull = full;
++    scaleDraw(co);
++}
++
+ static void scaleDraw(newtComponent co) {
+     struct scale * sc = co->data;
+     int i;
+@@ -79,11 +91,11 @@ static void scaleDraw(newtComponent co) {
+ 
+     sprintf(percent, "%3d%%", sc->percentage);
+ 
+-    SLsmg_set_color(NEWT_COLORSET_FULLSCALE);
++    SLsmg_set_color(sc->csFull);
+     
+     for (i = 0; i < co->width; i++) {
+         if (i == sc->charsSet)
+-            SLsmg_set_color(NEWT_COLORSET_EMPTYSCALE);
++            SLsmg_set_color(sc->csEmpty);
+         if (i >= xlabel && i < xlabel+4)
+             SLsmg_write_char(percent[i-xlabel]);
+         else
+diff --git a/scrollbar.c b/scrollbar.c
+index b89ede2..0c706b3 100644
+--- a/scrollbar.c
++++ b/scrollbar.c
+@@ -69,6 +69,14 @@ newtComponent newtVerticalScrollbar(int left, int top, int height,
+     return co;
+ }
+ 
++void newtScrollbarSetColors(newtComponent co, int normal, int thumb) {
++    struct scrollbar * sb = co->data;
++
++    sb->cs = normal;
++    sb->csThumb = thumb;
++    sbDraw(co);
++}
++
+ static void sbDraw(newtComponent co) {
+     struct scrollbar * sb = co->data;
+     int i;
+diff --git a/textbox.c b/textbox.c
+index 6429062..8bbd409 100644
+--- a/textbox.c
++++ b/textbox.c
+@@ -14,10 +14,12 @@ struct textbox {
+     int numLines;
+     int linesAlloced;
+     int doWrap;
+-    newtComponent sb_act, sb;
++    newtComponent sb;
+     int topLine;
+     int textWidth;
+     int isActive;
++    int cs;
++    int csActive;
+ };
+ 
+ static char * expandTabs(const char * text);
+@@ -45,7 +47,6 @@ static void textboxMapped(newtComponent co, int isMapped) {
+     co->isMapped = isMapped;
+     if (tb->sb) {
+ 	tb->sb->ops->mapped(tb->sb, isMapped);
+-	tb->sb_act->ops->mapped(tb->sb_act, isMapped);
+     }
+ }
+ 
+@@ -57,7 +58,6 @@ static void textboxPlace(newtComponent co, int newLeft, int newTop) {
+ 
+     if (tb->sb) {
+ 	tb->sb->ops->place(tb->sb, co->left + co->width - 1, co->top);
+-	tb->sb_act->ops->place(tb->sb_act, co->left + co->width - 1, co->top);
+     }
+ }
+ 
+@@ -115,21 +115,29 @@ newtComponent newtTextbox(int left, int top, int width, int height, int flags) {
+     tb->topLine = 0;
+     tb->textWidth = width;
+     tb->isActive = 0;
++    tb->cs = COLORSET_TEXTBOX;
++    tb->csActive = COLORSET_ACTTEXTBOX;
+ 
+     if (flags & NEWT_FLAG_SCROLL) {
+ 	co->width += 2;
+-	tb->sb_act = newtVerticalScrollbar(co->left + co->width - 1, co->top, 
+-			   co->height, COLORSET_ACTTEXTBOX, COLORSET_TEXTBOX);
+ 	tb->sb = newtVerticalScrollbar(co->left + co->width - 1, co->top, 
+-			   co->height, COLORSET_TEXTBOX, COLORSET_TEXTBOX);
++			   co->height, tb->cs, tb->cs);
+ 	co->takesFocus = 1;
+     } else {
+-	tb->sb_act = tb->sb = NULL;
++	tb->sb = NULL;
+     }
+ 
+     return co;
+ }
+ 
++void newtTextboxSetColors(newtComponent co, int normal, int active) {
++    struct textbox * tb = co->data;
++
++    tb->cs = normal;
++    tb->csActive = active;
++    textboxDraw(co);
++}
++
+ static char * expandTabs(const char * text) {
+     int bufAlloced = strlen(text) + 40;
+     char * buf, * dest;
+@@ -369,16 +377,12 @@ static void textboxDraw(newtComponent c) {
+ 
+     if (tb->sb) {
+ 	size = tb->numLines - c->height;
+-	if (tb->isActive) {
+-		newtScrollbarSet(tb->sb_act, tb->topLine, size ? size : 0);
+-		tb->sb_act->ops->draw(tb->sb_act);
+-	} else {
+-		newtScrollbarSet(tb->sb, tb->topLine, size ? size : 0);
+-		tb->sb->ops->draw(tb->sb);
+-	}
++	newtScrollbarSet(tb->sb, tb->topLine, size ? size : 0);
++	newtScrollbarSetColors(tb->sb, tb->isActive ? tb->csActive :
++			tb->cs, tb->cs);
+     }
+ 
+-    SLsmg_set_color(NEWT_COLORSET_TEXTBOX);
++    SLsmg_set_color(tb->cs);
+ 
+     for (i = 0; (i + tb->topLine) < tb->numLines && i < c->height; i++) {
+ 	newtGotorc(c->top + i, c->left);
+@@ -469,8 +473,6 @@ static void textboxDestroy(newtComponent co) {
+ 
+     if (tb->sb)
+ 	tb->sb->ops->destroy(tb->sb);
+-    if (tb->sb_act)
+-	tb->sb_act->ops->destroy(tb->sb_act);
+     for (i = 0; i < tb->numLines; i++) 
+ 	free(tb->lines[i]);
+     free(tb->lines);
+
+commit f5547e892271e6dd88d9586671b0b82db6869cb0
+Author: Miroslav Lichvar <mlichvar@redhat.com>
+Date:   Fri May 27 10:59:18 2011 +0200
+
+    start custom colorsets at 30
+    
+    slang keeps internally only 512 color pairs (JMAX_COLORS constant).
+
+diff --git a/newt.h b/newt.h
+index 103b139..65a566b 100644
+--- a/newt.h
++++ b/newt.h
+@@ -31,7 +31,7 @@ extern "C" {
+ #define NEWT_COLORSET_ACTSELLISTBOX	23
+ #define NEWT_COLORSET_SELLISTBOX	24
+ 
+-#define NEWT_COLORSET_CUSTOM(x)		(1000 + (x))
++#define NEWT_COLORSET_CUSTOM(x)		(30 + (x))
+ 
+ #define NEWT_ARG_LAST			-100000
+ #define NEWT_ARG_APPEND			-1
+
+commit 92567bd5ed421161cbf061335193d46d87f9b377
+Author: Joey Boggs <jboggs@redhat.com>
+Date:   Tue May 31 16:17:08 2011 -0400
+
+    add python bindings for setting label colors
+
+diff --git a/snack.py b/snack.py
+index 7b27e63..30b760c 100644
+--- a/snack.py
++++ b/snack.py
+@@ -240,6 +240,7 @@ class Label(Widget):
+ 
+      - Label(self,text)   : create label
+      - setText(self,text) : change text.
++     - setColors(self, colorset) : change individual colors
+     """
+     def setText(self, text):
+         self.w.labelText(text)
+@@ -247,6 +248,9 @@ class Label(Widget):
+     def __init__(self, text):
+         self.w = _snack.label(text)
+ 
++    def setColors(self, colorset):
++        self.w.labelSetColors(colorset)
++
+ class Scale(Widget):
+     """A Scale (progress bar).
+ 
+@@ -517,7 +521,11 @@ class SnackScreen:
+         return _snack.refresh()
+ 
+     def setColor(self, colorset, fg, bg):
+-        return _snack.setcolor(colorsets[colorset], fg, bg)
++        if colorset in colorsets:
++            return _snack.setcolor(colorsets[colorset], fg, bg)
++        else:
++           # assume colorset is an integer for the custom color set
++           return _snack.setcolor(colorset, fg, bg)
+ 
+ def reflow(text, width, flexDown = 5, flexUp = 5):
+     """ returns a tuple of the wrapped text, the actual width, and the actual height
+@@ -982,3 +990,6 @@ class CListbox(Grid):
+ 
+     def clear(self):
+         self.listbox.clear()
++
++def customColorset(x):
++    return 30 + x
+diff --git a/snackmodule.c b/snackmodule.c
+index 55d1a0a..78c6124 100644
+--- a/snackmodule.c
++++ b/snackmodule.c
+@@ -195,6 +195,7 @@ static PyObject * widgetGetAttr(PyObject * s, char * name);
+ static void widgetDestructor(PyObject * s);
+ static PyObject * widgetEntrySetValue(snackWidget * s, PyObject * args);
+ static PyObject * widgetLabelText(snackWidget * s, PyObject * args);
++static PyObject * widgetLabelSetColors(snackWidget * s, PyObject * args);
+ static PyObject * widgetListboxSetW(snackWidget * s, PyObject * args);
+ static PyObject * widgetListboxAdd(snackWidget * s, PyObject * args);
+ static PyObject * widgetListboxIns(snackWidget * s, PyObject * args);
+@@ -219,6 +220,7 @@ static PyObject * widgetCheckboxSetValue(snackWidget * s, PyObject * args);
+ 
+ static PyMethodDef widgetMethods[] = {
+     { "setCallback", (PyCFunction) widgetAddCallback, METH_VARARGS, NULL },
++    { "labelSetColors", (PyCFunction) widgetLabelSetColors, METH_VARARGS, NULL },
+     { "labelText", (PyCFunction) widgetLabelText, METH_VARARGS, NULL },
+     { "textboxText", (PyCFunction) widgetTextboxText, METH_VARARGS, NULL },
+     { "textboxHeight", (PyCFunction) widgetTextboxHeight, METH_VARARGS, NULL },
+@@ -662,6 +664,17 @@ static PyObject * widgetLabelText(snackWidget * s, PyObject * args) {
+     return Py_None;
+ }
+ 
++static PyObject * widgetLabelSetColors(snackWidget * s, PyObject * args) {
++    int colorset;
++
++    if (!PyArg_ParseTuple(args, "i", &colorset)) return NULL;
++
++    newtLabelSetColors(s->co, colorset);
++
++    Py_INCREF(Py_None);
++    return Py_None;
++}
++
+ static PyObject * widgetTextboxText(snackWidget * s, PyObject * args) {
+     char * text;
+ 
