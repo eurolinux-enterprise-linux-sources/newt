@@ -1,0 +1,72 @@
+commit 6c7007a6a2662f12eca3b8008651e4d8b0de6539
+Author: Miroslav Lichvar <mlichvar@redhat.com>
+Date:   Fri Apr 5 15:58:53 2013 +0200
+
+    add missing whiptail options to help and man page
+
+diff --git a/whiptail.1 b/whiptail.1
+index 41ab640..ea212a8 100644
+--- a/whiptail.1
++++ b/whiptail.1
+@@ -87,7 +87,7 @@ The dialog box will open with the cursor over the
+ Set  the default item in a menu box.
+ Normally the first item in the box is the default.
+ .TP
+-.B \-\-fb
++\fB\-\-fb\fR, \fB\-\-fullbuttons\fR
+ Use full buttons. (By default, 
+ .B whiptail
+ uses compact buttons). 
+@@ -117,6 +117,9 @@ The menu, checklist and radiolist widgets will display tags only, not
+ the item strings. The menu widget still needs some items specified,
+ but checklist and radiolist expect only tag and status.
+ .TP
++.B \-\-notags
++Don't display tags in the menu, checklist and radiolist widgets.
++.TP
+ .BI \-\-separate\-output
+ For checklist widgets, output result one line at a time, with no
+ quoting.  This facilitates parsing by another program.
+@@ -144,6 +147,12 @@ Force the display of a vertical scrollbar.
+ .BI \-\-topleft
+ Put window in top-left corner.
+ .TP
++\fB\-h\fR, \fB\-\-help\fR
++Print a help message and exit.
++.TP
++\fB\-v\fR, \fB\-\-version\fR
++Print version information and exit.
++.TP
+ .B Box Options
+ .TP
+ .BI \-\-yesno " text height width"
+diff --git a/whiptail.c b/whiptail.c
+index a631bc4..7932d8b 100644
+--- a/whiptail.c
++++ b/whiptail.c
+@@ -51,19 +51,22 @@ static void usage(int err) {
+ 	       "\t--clear				clear screen on exit\n"
+ 	       "\t--defaultno			default no button\n"	
+ 	       "\t--default-item <string>		set default string\n"
+-	       "\t--fb				use full buttons\n"
++	       "\t--fb, --fullbuttons		use full buttons\n"
+ 	       "\t--nocancel			no cancel button\n"
+ 	       "\t--yes-button <text>		set text of yes button\n"
+ 	       "\t--no-button <text>		set text of no button\n"
+ 	       "\t--ok-button <text>		set text of ok button\n"
+ 	       "\t--cancel-button <text>		set text of cancel button\n"
+-	       "\t--noitem			display tags only\n"
++	       "\t--noitem			don't display items\n"
++	       "\t--notags			don't display tags\n"
+ 	       "\t--separate-output		output one line at a time\n"
+ 	       "\t--output-fd <fd>		output to fd, not stdout\n"
+ 	       "\t--title <title>			display title\n"
+ 	       "\t--backtitle <backtitle>		display backtitle\n"
+ 	       "\t--scrolltext			force vertical scrollbars\n"
+-	       "\t--topleft			put window in top-left corner\n\n"));
++	       "\t--topleft			put window in top-left corner\n"
++	       "\t-h, --help			print this message\n"
++	       "\t-v, --version			print version information\n\n"));
+     exit(err ? DLG_ERROR : 0 );
+ }
+ 
