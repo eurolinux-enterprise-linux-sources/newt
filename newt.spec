@@ -2,7 +2,7 @@
 Summary: A library for text mode user interfaces
 Name: newt
 Version: 0.52.15
-Release: 2%{?dist}
+Release: 4%{?dist}
 License: LGPLv2
 Group: System Environment/Libraries
 URL: https://fedorahosted.org/newt/
@@ -97,6 +97,12 @@ make DESTDIR=$RPM_BUILD_ROOT install
 %{python_sitearch}/*.py*
 
 %changelog
+* Fri Jan 24 2014 Daniel Mach <dmach@redhat.com> - 0.52.15-4
+- Mass rebuild 2014-01-24
+
+* Fri Dec 27 2013 Daniel Mach <dmach@redhat.com> - 0.52.15-3
+- Mass rebuild 2013-12-27
+
 * Fri Apr 05 2013 Miroslav Lichvar <mlichvar@redhat.com> - 0.52.15-2
 - add missing whiptail options to help and man page
 
